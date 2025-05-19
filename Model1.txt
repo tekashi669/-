@@ -1,0 +1,179 @@
+﻿-- Create Database
+CREATE DATABASE MedicalLaboratory2;
+GO
+
+USE MedicalLaboratory2;
+GO
+
+-- Create Tables
+CREATE TABLE Roles (
+    RoleId INT IDENTITY(1,1) PRIMARY KEY,
+    Name NVARCHAR(50) NOT NULL
+);
+
+CREATE TABLE InsuranceCompanies (
+    CompanyId INT IDENTITY(1,1) PRIMARY KEY,
+    Name NVARCHAR(100) NOT NULL,
+    Address NVARCHAR(200) NOT NULL,
+    INN NVARCHAR(12) NOT NULL,
+    AccountNumber NVARCHAR(20) NOT NULL,
+    BIC NVARCHAR(9) NOT NULL,
+    IsArchived BIT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE SystemUsers (
+    UserId INT IDENTITY(1,1) PRIMARY KEY,
+    Login NVARCHAR(50) NOT NULL,
+    Password NVARCHAR(100) NOT NULL,
+    FirstName NVARCHAR(50) NOT NULL,
+    LastName NVARCHAR(50) NOT NULL,
+    MiddleName NVARCHAR(50),
+    RoleId INT NOT NULL,
+    LastLogin DATETIME,
+    Photo VARBINARY(MAX),
+    IsBlocked BIT NOT NULL DEFAULT 0,
+    BlockedUntil DATETIME,
+    IsArchived BIT NOT NULL DEFAULT 0,
+    LastEnterTime DATETIME,
+    SessionStartTime DATETIME,
+    SessionDuration INT,
+    FOREIGN KEY (RoleId) REFERENCES Roles(RoleId)
+);
+
+CREATE TABLE LoginHistory (
+    LoginHistoryId INT IDENTITY(1,1) PRIMARY KEY,
+    UserId INT,
+    Login NVARCHAR(50) NOT NULL,
+    AttemptTime DATETIME NOT NULL,
+    IsSuccess BIT NOT NULL,
+    IPAddress NVARCHAR(15),
+    UserAgent NVARCHAR(500),
+    DeviceType NVARCHAR(50),
+    FOREIGN KEY (UserId) REFERENCES SystemUsers(UserId)
+);
+
+CREATE TABLE Patients (
+    PatientId INT IDENTITY(1,1) PRIMARY KEY,
+    Login NVARCHAR(50) NOT NULL,
+    Password NVARCHAR(100) NOT NULL,
+    FirstName NVARCHAR(50) NOT NULL,
+    LastName NVARCHAR(50) NOT NULL,
+    MiddleName NVARCHAR(50),
+    BirthDate DATE NOT NULL,
+    PassportSeries NVARCHAR(4) NOT NULL,
+    PassportNumber NVARCHAR(6) NOT NULL,
+    Phone NVARCHAR(15) NOT NULL,
+    Email NVARCHAR(100),
+    InsurancePolicyNumber NVARCHAR(20) NOT NULL,
+    InsurancePolicyType NVARCHAR(50) NOT NULL,
+    InsuranceCompanyId INT NOT NULL,
+    Photo VARBINARY(MAX),
+    IsArchived BIT NOT NULL DEFAULT 0,
+    FOREIGN KEY (InsuranceCompanyId) REFERENCES InsuranceCompanies(CompanyId)
+);
+
+CREATE TABLE Orders (
+    OrderId INT IDENTITY(1,1) PRIMARY KEY,
+    PatientId INT NOT NULL,
+    Barcode NVARCHAR(20) NOT NULL,
+    CreationDate DATETIME NOT NULL,
+    Status NVARCHAR(20) NOT NULL,
+    IsArchived BIT NOT NULL DEFAULT 0,
+    FOREIGN KEY (PatientId) REFERENCES Patients(PatientId)
+);
+
+CREATE TABLE Services (
+    ServiceId INT IDENTITY(1,1) PRIMARY KEY,
+    Code NVARCHAR(10) NOT NULL,
+    Name NVARCHAR(100) NOT NULL,
+    Price DECIMAL(10, 2) NOT NULL,
+    ExecutionTimeDays INT NOT NULL,
+    AverageDeviation DECIMAL(10, 2),
+    IsArchived BIT NOT NULL DEFAULT 0,
+    AvailableAnalyzers NVARCHAR(MAX)
+);
+
+CREATE TABLE OrderServices (
+    OrderServiceId INT IDENTITY(1,1) PRIMARY KEY,
+    OrderId INT NOT NULL,
+    ServiceId INT NOT NULL,
+    Status NVARCHAR(20) NOT NULL,
+    ExecutionTimeSeconds INT,
+    IsArchived BIT NOT NULL DEFAULT 0,
+    FOREIGN KEY (OrderId) REFERENCES Orders(OrderId),
+    FOREIGN KEY (ServiceId) REFERENCES Services(ServiceId)
+);
+
+CREATE TABLE Analyzers (
+    AnalyzerId INT IDENTITY(1,1) PRIMARY KEY,
+    Name NVARCHAR(50) NOT NULL,
+    IsArchived BIT NOT NULL DEFAULT 0,
+    AnalyzerModel NVARCHAR(100),
+    AnalyzerManufacturer NVARCHAR(100),
+    LastCalibrationDate DATETIME
+);
+
+CREATE TABLE PerformedServices (
+    PerformedServiceId INT IDENTITY(1,1) PRIMARY KEY,
+    OrderServiceId INT NOT NULL,
+    PerformedDate DATETIME NOT NULL,
+    AnalyzerId INT NOT NULL,
+    Result NVARCHAR(MAX),
+    IsArchived BIT NOT NULL DEFAULT 0,
+    FOREIGN KEY (OrderServiceId) REFERENCES OrderServices(OrderServiceId),
+    FOREIGN KEY (AnalyzerId) REFERENCES Analyzers(AnalyzerId)
+);
+
+CREATE TABLE InsuranceInvoices (
+    InvoiceId INT IDENTITY(1,1) PRIMARY KEY,
+    InsuranceCompanyId INT NOT NULL,
+    OrderId INT NOT NULL,
+    CreationDate DATETIME NOT NULL,
+    Amount DECIMAL(10, 2) NOT NULL,
+    IsPaid BIT NOT NULL DEFAULT 0,
+    IsArchived BIT NOT NULL DEFAULT 0,
+    FOREIGN KEY (InsuranceCompanyId) REFERENCES InsuranceCompanies(CompanyId),
+    FOREIGN KEY (OrderId) REFERENCES Orders(OrderId)
+);
+
+CREATE TABLE Biomaterials (
+    BiomaterialId INT IDENTITY(1,1) PRIMARY KEY,
+    Barcode NVARCHAR(50) NOT NULL,
+    PatientId INT,
+    Type NVARCHAR(50) NOT NULL,
+    CollectionDateTime DATETIME NOT NULL,
+    Status NVARCHAR(50) NOT NULL,
+    Notes NVARCHAR(MAX),
+    IsArchived BIT NOT NULL DEFAULT 0,
+    FOREIGN KEY (PatientId) REFERENCES Patients(PatientId)
+);
+
+CREATE TABLE Supplies (
+    SupplyId INT IDENTITY(1,1) PRIMARY KEY,
+    Name NVARCHAR(100) NOT NULL,
+    Quantity INT NOT NULL,
+    Unit NVARCHAR(20) NOT NULL,
+    IsArchived BIT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE UserServices (
+    UserServiceId INT IDENTITY(1,1) PRIMARY KEY,
+    UserId INT NOT NULL,
+    ServiceId INT NOT NULL,
+    FOREIGN KEY (UserId) REFERENCES SystemUsers(UserId),
+    FOREIGN KEY (ServiceId) REFERENCES Services(ServiceId)
+);
+
+-- Create Indexes for better performance
+CREATE INDEX IX_SystemUsers_RoleId ON SystemUsers(RoleId);
+CREATE INDEX IX_Patients_InsuranceCompanyId ON Patients(InsuranceCompanyId);
+CREATE INDEX IX_Orders_PatientId ON Orders(PatientId);
+CREATE INDEX IX_OrderServices_OrderId ON OrderServices(OrderId);
+CREATE INDEX IX_OrderServices_ServiceId ON OrderServices(ServiceId);
+CREATE INDEX IX_PerformedServices_OrderServiceId ON PerformedServices(OrderServiceId);
+CREATE INDEX IX_PerformedServices_AnalyzerId ON PerformedServices(AnalyzerId);
+CREATE INDEX IX_InsuranceInvoices_InsuranceCompanyId ON InsuranceInvoices(InsuranceCompanyId);
+CREATE INDEX IX_InsuranceInvoices_OrderId ON InsuranceInvoices(OrderId);
+CREATE INDEX IX_Biomaterials_PatientId ON Biomaterials(PatientId);
+CREATE INDEX IX_UserServices_UserId ON UserServices(UserId);
+CREATE INDEX IX_UserServices_ServiceId ON UserServices(ServiceId);
